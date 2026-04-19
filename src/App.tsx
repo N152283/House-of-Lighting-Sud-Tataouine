@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/sonner';
 
 // Public Pages
 import HomePage from './pages/HomePage';
+import ProductsPage from './pages/ProductsPage';
 import CheckoutPage from './pages/CheckoutPage';
 
 // Admin Pages
@@ -14,6 +15,7 @@ import ProductManagement from './pages/admin/ProductManagement';
 import CategoryManagement from './pages/admin/CategoryManagement';
 import OrderManagement from './pages/admin/OrderManagement';
 import MessageManagement from './pages/admin/MessageManagement';
+import CouponManagement from './pages/admin/CouponManagement';
 
 import { useAuth } from './contexts/AuthContext';
 
@@ -38,6 +40,7 @@ export default function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<HomePage />} />
+        <Route path="/products" element={<ProductsPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         
         {/* Admin Routes */}
@@ -50,6 +53,7 @@ export default function App() {
           <Route index element={<DashboardOverview />} />
           <Route path="products" element={<ProductManagement />} />
           <Route path="categories" element={<CategoryManagement />} />
+          <Route path="coupons" element={<CouponManagement />} />
           <Route path="orders" element={<OrderManagement />} />
           <Route path="messages" element={<MessageManagement />} />
         </Route>

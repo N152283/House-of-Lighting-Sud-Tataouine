@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { supabase } from '@/src/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Lightbulb, Lock, Mail, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
+import { Lock, Mail, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/src/contexts/AuthContext';
+import BrandLogo from '@/src/components/BrandLogo';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -14,6 +15,13 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { isAdmin, signIn } = useAuth();
+
+  useEffect(() => {
+    if (isAdmin) {
+      navigate('/admin', { replace: true });
+    }
+  }, [isAdmin, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,37 +29,10 @@ export default function AdminLogin() {
     setError(null);
 
     try {
-      // Query the users table
-      const { data: users, error: queryError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email);
-
-      if (queryError) throw queryError;
-      
-      if (!users || users.length === 0) {
-        setError('Email not found');
-        toast.error('Email not found');
-        setLoading(false);
-        return;
-      }
-
-      const user = users[0];
-      
-      // Note: Password verification should be done on backend
-      // For now, we'll just check if user exists
-      // TODO: Implement proper password verification with a database function
-      
-      // Store admin session
-      localStorage.setItem('adminUser', JSON.stringify({
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        timestamp: new Date().toISOString()
-      }));
+      await signIn(email, password);
 
       toast.success('Welcome to administration panel');
-      navigate('/admin');
+      navigate('/admin', { replace: true });
     } catch (err: any) {
       console.error('Login error:', err.message);
       setError('Connection error. Please try again.');
@@ -84,11 +65,7 @@ export default function AdminLogin() {
       >
         <div className="bg-[#111113]/80 backdrop-blur-2xl border border-white/5 rounded-[40px] shadow-[0_22px_70px_4px_rgba(0,0,0,0.56)] overflow-hidden">
           <div className="p-12 pb-8 text-center border-b border-white/5">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-400 to-amber-600 p-[2px] mb-8 shadow-2xl shadow-amber-500/20">
-              <div className="w-full h-full bg-[#111113] rounded-[22px] flex items-center justify-center">
-                <Lightbulb className="text-amber-500 w-8 h-8 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-              </div>
-            </div>
+            <BrandLogo className="mx-auto mb-8 h-24 w-24 rounded-3xl border border-amber-400/40 p-2 shadow-2xl shadow-amber-500/20" />
             <h1 className="text-4xl font-bold text-white tracking-tight mb-3 font-serif italic">Espace Privé</h1>
             <p className="text-slate-400 font-light tracking-wide uppercase text-[10px]">House of Lighting Sud Tataouine</p>
           </div>

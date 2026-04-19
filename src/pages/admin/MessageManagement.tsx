@@ -32,7 +32,13 @@ export default function MessageManagement() {
   const fetchMessages = async () => {
     setLoading(true);
     const { data, error } = await supabase.from('messages').select('*').order('created_at', { ascending: false });
-    if (!error) setMessages(data || []);
+    if (error) {
+      console.error('Failed to load messages:', error);
+      toast.error('Impossible de charger les messages. Vérifiez les politiques Supabase.');
+      setMessages([]);
+    } else {
+      setMessages(data || []);
+    }
     setLoading(false);
   };
 

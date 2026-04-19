@@ -1,19 +1,33 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Lightbulb, MapPin, Phone, Mail, Facebook, Instagram, Twitter } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Lightbulb, MapPin, Phone, Facebook, Instagram, Twitter } from 'lucide-react';
 import Navbar from '@/src/components/Navbar';
+import AnnouncementBar from '@/src/components/AnnouncementBar';
 import Hero from '@/src/components/Hero';
 import ProductCard from '@/src/components/ProductCard';
 import ContactForm from '@/src/components/ContactForm';
+import BrandLogo from '@/src/components/BrandLogo';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/src/lib/supabase';
+import { getProductImageUrl, handleProductImageError } from '@/src/lib/productImages';
 import { Product, Category } from '@/src/types';
+
+const categoryLabels = [
+  'Tous',
+  'Accessoires',
+  'Appliques Murales',
+  'Éclairage Extérieur',
+  'Éclairage LED',
+  'Lustres de Luxe',
+  'Matériel Électrique',
+];
 
 export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState('Tous');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,9 +43,10 @@ export default function HomePage() {
   const fetchProducts = async () => {
     setLoading(true);
     let query = supabase.from('products').select('*, categories(*)');
-    
-    if (selectedCategory) {
-      query = query.eq('category_id', selectedCategory);
+
+    const activeCategory = categories.find((cat) => cat.name === selectedCategory);
+    if (activeCategory) {
+      query = query.eq('category_id', activeCategory.id);
     }
 
     const { data, error } = await query.order('created_at', { ascending: false });
@@ -41,52 +56,109 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchProducts();
-  }, [selectedCategory]);
+  }, [selectedCategory, categories]);
+
+  const popularProducts = useMemo(() => {
+    const featured = products.filter((product) => product.is_featured);
+    return featured.length > 0 ? featured.slice(0, 8) : products.slice(0, 8);
+  }, [products]);
 
   return (
     <div className="min-h-screen bg-white font-sans selection:bg-amber-100 selection:text-amber-900">
+      <AnnouncementBar />
       <Navbar />
       <Hero />
 
-      {/* Products Section */}
-      <section id="products" className="py-24 bg-slate-50">
+      <section className="pt-24 pb-16 bg-slate-50">
         <div className="container mx-auto px-4">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <Badge variant="outline" className="border-amber-500 text-amber-600 mb-4 px-4 py-1">Notre Catalogue</Badge>
-            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">Éclairez Votre Intérieur</h2>
-            <p className="text-slate-600">Découvrez nos collections de luminaires haut de gamme pour une ambiance unique.</p>
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <Badge variant="outline" className="border-amber-500 text-amber-600 mb-4 px-4 py-1 uppercase tracking-[0.22em] text-xs">
+              Catégories Populaires
+            </Badge>
+            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">Trouvez l'éclairage parfait pour chaque pièce</h2>
+            <p className="text-slate-600 leading-relaxed">
+              Parcourez nos collections premium de lampes, LED, lustres et accessoires électriques. Un design moderne et une ambiance chaleureuse vous attendent.
+            </p>
           </div>
 
-          {/* Category Filter */}
           <div className="flex flex-wrap justify-center gap-3 mb-12">
-            <Button
-              variant={selectedCategory === null ? 'default' : 'outline'}
-              onClick={() => setSelectedCategory(null)}
-              className={selectedCategory === null ? 'bg-amber-500 hover:bg-amber-600 border-none px-6' : 'border-slate-200 text-slate-600'}
-            >
-              Tous
-            </Button>
-            {categories.map((cat) => (
-              <Button
-                key={cat.id}
-                variant={selectedCategory === cat.id ? 'default' : 'outline'}
-                onClick={() => setSelectedCategory(cat.id)}
-                className={selectedCategory === cat.id ? 'bg-amber-500 hover:bg-amber-600 border-none px-6' : 'border-slate-200 text-slate-600'}
-              >
-                {cat.name}
-              </Button>
-            ))}
+            {categoryLabels.map((label) => {
+              const activeCategory = categories.find((cat) => cat.name === label);
+              const isActive = selectedCategory === label;
+              return (
+                <Button
+                  key={label}
+                  variant={isActive ? 'default' : 'outline'}
+                  onClick={() => setSelectedCategory(label)}
+                  className={isActive ? 'bg-amber-500 hover:bg-amber-600 border-none text-white px-5 py-2' : 'border-slate-200 text-slate-600 px-5 py-2'}
+                >
+                  {label}
+                </Button>
+              );
+            })}
           </div>
 
-          {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-[400px] bg-slate-200 animate-pulse rounded-2xl" />
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+            <div>
+              <h3 className="text-2xl font-bold text-slate-900">Produits populaires</h3>
+              <p className="text-slate-500">Un aperçu des best-sellers et des nouveautés de la boutique.</p>
+            </div>
+            <Link to="/products" className="inline-flex items-center gap-2 text-sm font-semibold text-amber-600 hover:text-amber-700 transition">
+              Découvrir plus
+            </Link>
+          </div>
+
+          <div className="relative">
+            <div className="absolute left-0 top-1/2 hidden h-px w-full bg-slate-200 md:block" />
+            <div className="relative flex gap-4 overflow-x-auto pb-3 scroll-smooth snap-x snap-mandatory">
+              {popularProducts.map((product) => (
+                <Link
+                  key={product.id}
+                  to="/products"
+                  className="snap-start min-w-[260px] lg:min-w-[300px] rounded-3xl border border-slate-200 bg-white shadow-sm transition-transform hover:-translate-y-1 hover:shadow-xl"
+                >
+                  <div className="h-60 overflow-hidden rounded-t-3xl">
+                    <img
+                      src={getProductImageUrl(product.image_url)}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                      onError={handleProductImageError}
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                  <div className="p-5">
+                    <div className="text-xs uppercase tracking-[0.22em] text-amber-600 mb-3">{product.categories?.name || 'Éclairage'}</div>
+                    <h4 className="text-lg font-bold text-slate-900 mb-2 line-clamp-2">{product.name}</h4>
+                    <p className="text-sm text-slate-500 line-clamp-3 mb-4">{product.description || 'Élégance et performance pour vos espaces de vie.'}</p>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xl font-bold text-amber-600">{Number(product.price).toLocaleString()} DT</span>
+                      <Badge className="bg-amber-100 text-amber-700 border-none">Top</Badge>
+                    </div>
+                  </div>
+                </Link>
               ))}
             </div>
-          ) : products.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {products.map((product) => (
+          </div>
+        </div>
+      </section>
+
+      <section id="products" className="py-24 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center max-w-2xl mx-auto mb-10">
+            <Badge variant="outline" className="border-amber-500 text-amber-600 mb-4 px-4 py-1 uppercase tracking-[0.22em] text-xs">
+              Notre Catalogue
+            </Badge>
+            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">Une sélection moderne pour tous vos projets</h2>
+            <p className="text-slate-600">Choisissez parmi des lampes, luminaires et accessoires électriques conçus pour un intérieur contemporain.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {loading ? (
+              Array.from({ length: 8 }).map((_, index) => (
+                <div key={index} className="h-[420px] rounded-3xl bg-slate-200 animate-pulse" />
+              ))
+            ) : products.length > 0 ? (
+              products.slice(0, 8).map((product) => (
                 <motion.div
                   key={product.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -95,17 +167,22 @@ export default function HomePage() {
                 >
                   <ProductCard product={product} />
                 </motion.div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-dashed border-slate-200">
-              <p className="text-slate-500">Aucun produit trouvé dans cette catégorie.</p>
-            </div>
-          )}
+              ))
+            ) : (
+              <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-dashed border-slate-200 col-span-full">
+                <p className="text-slate-500">Aucun produit trouvé pour le moment.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-12 text-center">
+            <Link to="/products" className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white px-8 py-4 text-sm font-semibold text-slate-900 shadow-sm hover:border-amber-300 hover:bg-amber-50 transition">
+              Découvrir plus de produits
+            </Link>
+          </div>
         </div>
       </section>
 
-      {/* About Section */}
       <section id="about" className="py-24 overflow-hidden bg-white">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-2 gap-16 items-center">
@@ -156,7 +233,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Contact Section */}
       <section id="contact" className="py-24 bg-slate-950 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-1/3 h-full bg-amber-500/5 -z-0" />
         <div className="container mx-auto px-4 relative z-10">
@@ -167,7 +243,6 @@ export default function HomePage() {
               <p className="text-slate-400 mb-12 max-w-md leading-relaxed">
                 Notre équipe d'experts est à votre écoute pour vous conseiller sur le meilleur choix d'éclairage pour votre maison ou commerce.
               </p>
-              
               <div className="space-y-10">
                 <div className="flex items-center gap-6 group">
                   <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 group-hover:bg-amber-500/20 group-hover:border-amber-500/50 transition-all">
@@ -189,21 +264,17 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
-            
             <ContactForm />
           </div>
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="bg-slate-950 text-white pt-24 pb-12 border-t border-white/5">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-16 mb-20">
             <div className="md:col-span-2">
               <div className="flex items-center gap-3 mb-8">
-                <div className="bg-amber-500 p-2 rounded-lg">
-                  <Lightbulb className="text-white w-7 h-7" />
-                </div>
+                <BrandLogo className="h-14 w-14 rounded-2xl border border-white/10 p-1" />
                 <div className="flex flex-col">
                   <span className="text-2xl font-bold tracking-tight">House of Lighting</span>
                   <span className="text-xs text-amber-500 font-bold tracking-widest uppercase">Sud Tataouine</span>
@@ -220,7 +291,6 @@ export default function HomePage() {
                 ))}
               </div>
             </div>
-            
             <div>
               <h4 className="font-bold mb-8 text-lg">Menu</h4>
               <ul className="space-y-4 text-slate-400">
@@ -234,7 +304,6 @@ export default function HomePage() {
                 ))}
               </ul>
             </div>
-            
             <div>
               <h4 className="font-bold mb-8 text-lg">Horaires Showroom</h4>
               <ul className="space-y-4 text-slate-400">
@@ -244,7 +313,6 @@ export default function HomePage() {
               </ul>
             </div>
           </div>
-          
           <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 text-sm text-slate-500">
             <p>© 2024 House of Lighting Sud Tataouine. Design par El Kar Nabil.</p>
             <div className="flex gap-10">

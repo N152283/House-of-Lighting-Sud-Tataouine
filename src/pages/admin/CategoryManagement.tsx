@@ -105,7 +105,7 @@ export default function CategoryManagement() {
             setName('');
           }
         }}>
-          <DialogTrigger asChild>
+          <DialogTrigger>
             <Button className="bg-amber-500 hover:bg-amber-600 text-white gap-2">
               <Plus className="w-5 h-5" />
               Nouvelle Catégorie

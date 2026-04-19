@@ -5,6 +5,7 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Product } from '@/src/types';
 import { useCart } from '@/src/contexts/CartContext';
+import { getProductImageUrl, handleProductImageError } from '@/src/lib/productImages';
 
 interface ProductCardProps {
   product: Product;
@@ -17,9 +18,10 @@ export default function ProductCard({ product }: ProductCardProps) {
     <Card className="group overflow-hidden border-none shadow-sm hover:shadow-xl transition-all duration-300 bg-white">
       <div className="relative aspect-square overflow-hidden">
         <img
-          src={product.image_url || 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?q=80&w=500&auto=format&fit=crop'}
+          src={getProductImageUrl(product.image_url)}
           alt={product.name}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          onError={handleProductImageError}
           referrerPolicy="no-referrer"
         />
         {product.is_featured && (

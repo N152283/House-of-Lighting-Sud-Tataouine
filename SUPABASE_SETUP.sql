@@ -56,6 +56,10 @@ CREATE TABLE IF NOT EXISTS orders (
   phone TEXT NOT NULL,
   address TEXT NOT NULL,
   total_price DECIMAL(10, 2) NOT NULL,
+  coupon_code TEXT,
+  coupon_id UUID REFERENCES coupons(id) ON DELETE SET NULL,
+  discount_amount DECIMAL(10, 2) DEFAULT 0,
+  shipping_cost DECIMAL(10, 2) DEFAULT 0,
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'shipped', 'delivered', 'cancelled')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -65,12 +69,37 @@ CREATE TABLE IF NOT EXISTS order_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
   product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+  product_name TEXT,
+  product_image_url TEXT,
   quantity INTEGER NOT NULL DEFAULT 1,
   price_at_time DECIMAL(10, 2) NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 5. Create Messages Table
+-- Existing projects: keep order item snapshots so admin PDFs still show names
+-- even if a product is renamed or deleted after the order is placed.
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS product_name TEXT;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS product_image_url TEXT;
+
+UPDATE order_items oi
+SET
+  product_name = COALESCE(oi.product_name, p.name),
+  product_image_url = COALESCE(oi.product_image_url, p.image_url)
+FROM products p
+WHERE oi.product_id = p.id
+  AND (oi.product_name IS NULL OR oi.product_image_url IS NULL);
+
+-- 5. Create Coupons Table
+CREATE TABLE IF NOT EXISTS coupons (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  code TEXT NOT NULL UNIQUE,
+  discount_percent INTEGER NOT NULL CHECK (discount_percent >= 1 AND discount_percent <= 100),
+  is_used BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  used_at TIMESTAMP WITH TIME ZONE
+);
+
+-- 6. Create Messages Table
 CREATE TABLE IF NOT EXISTS messages (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
@@ -86,15 +115,27 @@ ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
 
 -- 7. Policies for Public Access (Read-only for shop)
 CREATE POLICY "Public Read Categories" ON categories FOR SELECT USING (true);
 CREATE POLICY "Public Read Products" ON products FOR SELECT USING (true);
+CREATE POLICY "Public Read Messages" ON messages FOR SELECT USING (true);
+CREATE POLICY "Public Read Coupons" ON coupons FOR SELECT USING (true);
+CREATE POLICY "Public Add Coupons" ON coupons FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Delete Coupons" ON coupons FOR DELETE USING (true);
+CREATE POLICY "Public Update Coupons" ON coupons FOR UPDATE USING (true) WITH CHECK (true);
 
 -- 8. Policies for Customer Actions (Write-only for orders/messages)
 CREATE POLICY "Public Add Orders" ON orders FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public Add Order Items" ON order_items FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public Add Messages" ON messages FOR INSERT WITH CHECK (true);
+
+-- The current admin panel uses the public Supabase anon client plus a local
+-- admin session, so it must be able to read order items for order details/PDFs.
+-- Run this on existing databases if order details show "Aucun article".
+DROP POLICY IF EXISTS "Public Read Order Items" ON order_items;
+CREATE POLICY "Public Read Order Items" ON order_items FOR SELECT USING (true);
 
 -- 9. Policies for Admin Access (Requires Auth)
 -- We assume the admin user has a specific email or is identified in a separate 'admins' logic/table

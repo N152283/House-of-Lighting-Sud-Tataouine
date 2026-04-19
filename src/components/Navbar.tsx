@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Lightbulb, Phone, MapPin, ShoppingBag, ShoppingCart, User } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Menu, Search, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useCart } from '@/src/contexts/CartContext';
 import { Badge } from '@/components/ui/badge';
+import BrandLogo from '@/src/components/BrandLogo';
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
-  const { totalItems } = useCart();
+  const { totalItems, totalPrice } = useCart();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -19,22 +22,20 @@ export default function Navbar() {
 
   const navLinks = [
     { name: 'Accueil', href: '/' },
-    { name: 'Produits', href: '#products' },
+    { name: 'Produits', href: '/products' },
     { name: 'À Propos', href: '#about' },
     { name: 'Contact', href: '#contact' },
   ];
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`sticky top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled ? 'bg-white/90 backdrop-blur-md shadow-sm py-3' : 'bg-transparent py-6'
       }`}
     >
       <div className="container mx-auto px-4 flex items-center justify-between">
         <a href="/" className="flex items-center gap-2 group">
-          <div className="bg-amber-500 p-2 rounded-lg group-hover:rotate-12 transition-transform">
-            <Lightbulb className="text-white w-6 h-6" />
-          </div>
+          <BrandLogo className="h-12 w-12 rounded-xl border border-amber-100 p-1 transition-transform group-hover:scale-105" />
           <div className="flex flex-col">
             <span className="text-xl font-bold tracking-tight text-slate-900 leading-none">
               House of Lighting
@@ -47,41 +48,59 @@ export default function Navbar() {
 
         {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-8">
-          {navLinks.map((link) => (
-            <a
-              key={link.name}
-              href={link.href}
-              className="text-sm font-medium text-slate-600 hover:text-amber-600 transition-colors"
-            >
-              {link.name}
-            </a>
-          ))}
-          
+          <div className="flex items-center gap-8">
+            {navLinks.map((link) => (
+              <Link
+                key={link.name}
+                to={link.href}
+                className="text-sm font-medium text-slate-600 hover:text-amber-600 transition-colors"
+              >
+                {link.name}
+              </Link>
+            ))}
+          </div>
+
           <div className="flex items-center gap-4 border-l pl-8 border-slate-200">
-            <Button variant="ghost" size="icon" className="relative text-slate-600 hover:text-amber-600">
+            <Button variant="ghost" size="icon" className="text-slate-600 hover:text-amber-600">
+              <Search className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative text-slate-600 hover:text-amber-600"
+              onClick={() => navigate('/checkout')}
+            >
               <ShoppingCart className="w-5 h-5" />
               {totalItems > 0 && (
-                <Badge className="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center p-0 bg-amber-500 text-white text-[10px] border-2 border-white">
-                  {totalItems}
-                </Badge>
+                <>
+                  <Badge className="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center p-0 bg-amber-500 text-white text-[10px] border-2 border-white">
+                    {totalItems}
+                  </Badge>
+                  <span className="absolute -bottom-1 -right-1 bg-amber-500 text-white text-[8px] px-1 rounded-full font-bold">
+                    {totalPrice.toFixed(0)}T
+                  </span>
+                </>
               )}
             </Button>
-            <a href="/admin">
-              <Button variant="outline" size="icon" className="text-slate-600 hover:text-amber-600">
-                <User className="w-5 h-5" />
-              </Button>
-            </a>
           </div>
         </div>
 
         {/* Mobile Nav */}
         <div className="flex items-center gap-2 md:hidden">
-          <Button variant="ghost" size="icon" className="relative">
+          <Button variant="ghost" size="icon" className="text-slate-600 hover:text-amber-600">
+            <Search className="w-5 h-5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="relative text-slate-600 hover:text-amber-600" onClick={() => navigate('/checkout')}>
             <ShoppingCart className="w-5 h-5" />
             {totalItems > 0 && (
-              <Badge className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center p-0 bg-amber-500 text-white text-[8px]">
-                {totalItems}
-              </Badge>
+              <>
+                <Badge className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center p-0 bg-amber-500 text-white text-[8px]">
+                  {totalItems}
+                </Badge>
+                <span className="absolute -bottom-1 -right-1 bg-amber-500 text-white text-[7px] px-1 rounded-full font-bold">
+                  {totalPrice.toFixed(0)}T
+                </span>
+              </>
             )}
           </Button>
           <Sheet>
@@ -89,25 +108,23 @@ export default function Navbar() {
               <Menu className="w-6 h-6" />
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px]">
-              <div className="flex flex-col gap-8 mt-12">
+              <div className="flex flex-col gap-6 mt-12">
                 {navLinks.map((link) => (
-                  <a
+                  <Link
                     key={link.name}
-                    href={link.href}
+                    to={link.href}
                     className="text-lg font-medium text-slate-900 hover:text-amber-600 transition-colors"
                   >
                     {link.name}
-                  </a>
+                  </Link>
                 ))}
-                <div className="pt-8 border-t border-slate-100 flex flex-col gap-4">
-                  <Button className="bg-amber-500 hover:bg-amber-600 text-white w-full">
+                <div className="pt-8 border-t border-slate-100 flex flex-col gap-3">
+                  <Button
+                    className="bg-amber-500 hover:bg-amber-600 text-white w-full"
+                    onClick={() => navigate('/checkout')}
+                  >
                     Panier ({totalItems})
                   </Button>
-                  <a href="/admin" className="w-full inline-block">
-                    <span className="inline-flex items-center justify-center w-full px-2.5 py-2 text-sm font-medium border border-border bg-background hover:bg-muted rounded-lg">
-                      Espace Admin
-                    </span>
-                  </a>
                 </div>
               </div>
             </SheetContent>

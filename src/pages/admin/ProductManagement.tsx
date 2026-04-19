@@ -42,6 +42,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Product, Category } from '@/src/types';
+import { getProductImageUrl, handleProductImageError } from '@/src/lib/productImages';
 
 export default function ProductManagement() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -297,12 +298,12 @@ export default function ProductManagement() {
                     </div>
                     {previewUrl && (
                       <div className="relative w-full h-[200px] bg-slate-50 rounded-lg overflow-hidden border border-slate-200">
-                        <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                        <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" onError={handleProductImageError} />
                       </div>
                     )}
                     {!previewUrl && formData.image_url && (
                       <div className="relative w-full h-[200px] bg-slate-50 rounded-lg overflow-hidden border border-slate-200">
-                        <img src={formData.image_url} alt="Preview" className="w-full h-full object-cover" />
+                        <img src={getProductImageUrl(formData.image_url)} alt="Preview" className="w-full h-full object-cover" onError={handleProductImageError} />
                       </div>
                     )}
                     <p className="text-[12px] text-slate-500">ou collez l'URL ci-dessous:</p>
@@ -377,7 +378,7 @@ export default function ProductManagement() {
                   <TableCell>
                     <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden border">
                       {product.image_url ? (
-                        <img src={product.image_url} alt="" className="w-full h-full object-cover" />
+                        <img src={getProductImageUrl(product.image_url)} alt={product.name} className="w-full h-full object-cover" onError={handleProductImageError} />
                       ) : (
                         <ImageIcon className="w-5 h-5 text-slate-400" />
                       )}

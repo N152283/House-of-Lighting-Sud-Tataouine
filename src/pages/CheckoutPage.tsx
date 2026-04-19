@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useCart } from '@/src/contexts/CartContext';
@@ -13,7 +13,13 @@ import {
   Phone, 
   CheckCircle2,
   Lock,
-  Loader2
+  Loader2,
+  Percent,
+  Check,
+  XCircle,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,20 +27,37 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
+import { getProductImageUrl, handleProductImageError } from '@/src/lib/productImages';
 
 export default function CheckoutPage() {
-  const { cart, totalPrice, clearCart } = useCart();
+  const { cart, totalPrice, clearCart, removeFromCart } = useCart();
   const navigate = useNavigate();
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const [loading, setLoading] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
   const [hasPreviousOrders, setHasPreviousOrders] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [coupon, setCoupon] = useState<{ code: string; discount_percent: number } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [showAllItems, setShowAllItems] = useState(false);
 
-  // Discount Logic: 10% if total > 500 TND
+  const scrollCart = (direction: 'left' | 'right') => {
+    if (!scrollRef.current) return;
+    const scrollAmount = direction === 'left' ? -220 : 220;
+    scrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+  };
+
+  // Shipping + discount logic
+  const shippingThreshold = 150;
+  const shippingCost = totalPrice >= shippingThreshold ? 0 : 8;
   const discountThreshold = 500;
   const discountRate = 0.10;
   const isEligibleForDiscount = totalPrice > discountThreshold || hasPreviousOrders;
-  const discountAmount = isEligibleForDiscount ? totalPrice * discountRate : 0;
-  const finalPrice = totalPrice - discountAmount;
+  const loyaltyDiscount = isEligibleForDiscount ? totalPrice * discountRate : 0;
+  const couponDiscount = coupon ? (totalPrice * coupon.discount_percent) / 100 : 0;
+  const discountAmount = coupon ? couponDiscount : loyaltyDiscount;
+  const finalPrice = totalPrice - discountAmount + shippingCost;
 
   const [formData, setFormData] = useState({
     name: '',
@@ -68,6 +91,34 @@ export default function CheckoutPage() {
     checkLoyalty(email);
   };
 
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Veuillez entrer un code promo.');
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponError(null);
+
+    const { data, error } = await supabase
+      .from('coupons')
+      .select('*')
+      .eq('code', couponCode.trim())
+      .eq('is_used', false)
+      .single();
+
+    if (error || !data) {
+      setCoupon(null);
+      setCouponError('Code invalide ou déjà utilisé.');
+      setCouponLoading(false);
+      return;
+    }
+
+    setCoupon({ code: data.code, discount_percent: data.discount_percent });
+    toast.success(`Coupon appliqué : ${data.discount_percent}% de réduction`);
+    setCouponLoading(false);
+  };
+
   if (cart.length === 0 && !orderComplete) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
@@ -99,6 +150,9 @@ export default function CheckoutPage() {
           phone: formData.phone,
           address: formData.address,
           total_price: finalPrice,
+          coupon_code: coupon?.code || null,
+          discount_amount: discountAmount,
+          shipping_cost: shippingCost,
           status: 'pending'
         }])
         .select()
@@ -110,15 +164,45 @@ export default function CheckoutPage() {
       const orderItems = cart.map(item => ({
         order_id: order.id,
         product_id: item.id,
+        product_name: item.name,
+        product_image_url: item.image_url || null,
         quantity: item.quantity,
         price_at_time: item.price
       }));
 
-      const { error: itemsError } = await supabase
+      let { error: itemsError } = await supabase
         .from('order_items')
         .insert(orderItems);
 
-      if (itemsError) throw itemsError;
+      if (itemsError && /product_name|product_image_url/i.test(itemsError.message)) {
+        const legacyOrderItems = cart.map(item => ({
+          order_id: order.id,
+          product_id: item.id,
+          quantity: item.quantity,
+          price_at_time: item.price
+        }));
+
+        const retry = await supabase
+          .from('order_items')
+          .insert(legacyOrderItems);
+
+        itemsError = retry.error;
+      }
+
+      if (itemsError) {
+        await supabase.from('orders').delete().eq('id', order.id);
+        throw itemsError;
+      }
+
+      if (coupon) {
+        const { error: couponError } = await supabase
+          .from('coupons')
+          .update({ is_used: true, used_at: new Date().toISOString() })
+          .eq('code', coupon.code);
+        if (couponError) {
+          console.error('Coupon update error:', couponError);
+        }
+      }
 
       setOrderComplete(true);
       clearCart();
@@ -221,6 +305,34 @@ export default function CheckoutPage() {
                      placeholder="Rue, Cité, Ville, Code Postal"
                    />
                  </div>
+                 <div className="space-y-2">
+                   <div className="flex items-center justify-between">
+                     <Label htmlFor="coupon" className="text-slate-600 font-medium ml-1">Code promo</Label>
+                     {coupon && (
+                       <span className="text-emerald-600 text-sm font-semibold flex items-center gap-1">
+                         <Check className="w-4 h-4" /> Appliqué : {coupon.discount_percent}%
+                       </span>
+                     )}
+                   </div>
+                   <div className="grid sm:grid-cols-[1fr_auto] gap-3">
+                     <Input
+                       id="coupon"
+                       value={couponCode}
+                       onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                       placeholder="Entrez votre code"
+                       className="h-12 border-slate-200 bg-slate-50 focus:bg-white rounded-xl uppercase"
+                     />
+                     <Button
+                       type="button"
+                       onClick={handleApplyCoupon}
+                       disabled={couponLoading || Boolean(coupon)}
+                       className="bg-slate-900 hover:bg-slate-800 text-white h-12"
+                     >
+                       {couponLoading ? 'Vérification...' : 'Appliquer'}
+                     </Button>
+                   </div>
+                   {couponError && <p className="text-sm text-red-600">{couponError}</p>}
+                 </div>
 
                  <div className="pt-6 border-t border-slate-100 flex items-center gap-4 text-slate-500">
                     <div className="bg-blue-50 p-2 rounded-lg">
@@ -254,19 +366,62 @@ export default function CheckoutPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-8 space-y-6">
-                  <div className="max-h-[300px] overflow-y-auto pr-2 space-y-6">
-                    {cart.map((item) => (
-                      <div key={item.id} className="flex gap-4">
-                        <div className="w-16 h-16 bg-slate-50 rounded-xl overflow-hidden shrink-0 border border-slate-100">
-                           <img src={item.image_url} alt="" className="w-full h-full object-cover" />
+                  <div className="max-h-[300px] overflow-hidden pr-2">
+                    <div className="flex items-center gap-2 mb-2 lg:hidden">
+                      <button
+                        type="button"
+                        onClick={() => scrollCart('left')}
+                        className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white p-2 text-slate-600 shadow-sm hover:bg-slate-100"
+                        aria-label="Scroll left"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => scrollCart('right')}
+                        className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white p-2 text-slate-600 shadow-sm hover:bg-slate-100"
+                        aria-label="Scroll right"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div ref={scrollRef} className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory lg:flex-col lg:overflow-visible lg:pb-0 scroll-smooth">
+                      {(showAllItems ? cart : cart.slice(0, 10)).map((item) => (
+                        <div
+                          key={item.id}
+                          className="min-w-[150px] max-w-[150px] lg:min-w-full lg:max-w-full flex-shrink-0 lg:flex-shrink rounded-3xl border border-slate-100 bg-slate-50 p-3 shadow-sm flex items-center gap-3 lg:gap-4 snap-start"
+                        >
+                          <div className="w-10 h-10 rounded-2xl overflow-hidden border border-slate-200 bg-white flex-shrink-0">
+                            <img src={getProductImageUrl(item.image_url)} alt={item.name} className="w-full h-full object-cover" onError={handleProductImageError} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-slate-900 text-[13px] truncate">{item.name}</p>
+                            <p className="text-slate-500 text-[10px] mt-1">Qty: {item.quantity} × {item.price.toLocaleString()} TND</p>
+                            <p className="text-amber-600 font-bold text-sm mt-2">{(item.price * item.quantity).toLocaleString()} TND</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFromCart(item.id)}
+                            className="text-slate-400 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-red-50"
+                            aria-label={`Supprimer ${item.name}`}
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </button>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-slate-900 text-sm truncate">{item.name}</p>
-                          <p className="text-slate-500 text-xs">Quantité: {item.quantity}</p>
-                          <p className="text-amber-600 font-bold text-sm mt-1">{(item.price * item.quantity).toLocaleString()} TND</p>
-                        </div>
+                      ))}
+                    </div>
+                    {cart.length > 10 && (
+                      <div className="mt-3 text-right lg:text-left">
+                        <button
+                          type="button"
+                          onClick={() => setShowAllItems((prev) => !prev)}
+                          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-100 transition"
+                        >
+                          <Plus className="w-4 h-4" />
+                          {showAllItems ? 'Voir moins' : `Voir plus (${cart.length - 10})`}
+                        </button>
                       </div>
-                    ))}
+                    )}
                   </div>
 
                   <Separator className="bg-slate-100" />
@@ -276,18 +431,22 @@ export default function CheckoutPage() {
                       <span>Sous-total</span>
                       <span className="font-bold text-slate-900">{totalPrice.toLocaleString()} TND</span>
                     </div>
-                    {isEligibleForDiscount && (
+                    {(coupon || isEligibleForDiscount) && (
                       <div className="flex justify-between text-amber-600 bg-amber-50 p-3 rounded-xl border border-amber-100 animate-in fade-in zoom-in duration-300">
                         <span className="flex items-center gap-2">
                           <CheckCircle2 className="w-4 h-4" />
-                          Remise Fidélité (10%)
+                          {coupon
+                            ? `Coupon ${coupon.code} (${coupon.discount_percent}%)`
+                            : 'Remise Fidélité (10%)'}
                         </span>
                         <span className="font-bold">-{discountAmount.toLocaleString()} TND</span>
                       </div>
                     )}
                     <div className="flex justify-between text-slate-500">
                       <span>Livraison</span>
-                      <span className="font-bold text-emerald-600">GRATUIT</span>
+                      <span className="font-bold text-emerald-600">
+                        {shippingCost === 0 ? 'GRATUIT' : `${shippingCost.toLocaleString()} TND`}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center text-xl pt-2">
                        <span className="font-bold text-slate-900">Total</span>
@@ -299,12 +458,12 @@ export default function CheckoutPage() {
                   <Button 
                     form="checkout-form"
                     type="submit"
-                    className="w-full bg-amber-500 hover:bg-amber-600 text-white py-8 text-lg font-bold rounded-2xl shadow-xl shadow-amber-500/20"
+                    className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white py-8 text-lg font-bold rounded-2xl shadow-xl shadow-amber-500/30 transform hover:scale-[1.02] transition-all duration-200"
                     disabled={loading}
                   >
                     {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : (
                       <>
-                        Confirmer la commande
+                        🛒 Commander maintenant
                         <CheckCircle2 className="ml-2 w-5 h-5" />
                       </>
                     )}

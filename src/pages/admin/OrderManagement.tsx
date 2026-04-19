@@ -44,7 +44,20 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Order, OrderStatus } from '@/src/types';
+import { Order, OrderItem, OrderStatus } from '@/src/types';
+import { getProductImageUrl, handleProductImageError } from '@/src/lib/productImages';
+
+type OrderItemWithProduct = OrderItem & {
+  products?: OrderItem['product'];
+};
+
+const getOrderItemProduct = (item: OrderItemWithProduct) => item.product || item.products || null;
+const getOrderItemName = (item: OrderItemWithProduct) => (
+  item.product_name || getOrderItemProduct(item)?.name || 'Produit supprimé'
+);
+const getOrderItemImage = (item: OrderItemWithProduct) => (
+  item.product_image_url || getOrderItemProduct(item)?.image_url || ''
+);
 
 export default function OrderManagement() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -61,7 +74,7 @@ export default function OrderManagement() {
     setLoading(true);
     const { data, error } = await supabase
       .from('orders')
-      .select('*, order_items(*, products(*))')
+      .select('*, order_items(*, product:products(*))')
       .order('created_at', { ascending: false });
 
     if (!error) setOrders(data || []);
@@ -104,9 +117,9 @@ export default function OrderManagement() {
     pdf.text('Articles Commandés', 20, 95);
     let yPosition = 105;
     
-    if (order.order_items && Array.isArray(order.order_items)) {
-      order.order_items.forEach((item: any) => {
-        const productName = item.products?.name || 'Produit';
+    if (order.order_items && Array.isArray(order.order_items) && order.order_items.length > 0) {
+      order.order_items.forEach((item) => {
+        const productName = getOrderItemName(item);
         const quantity = item.quantity || 1;
         const price = item.price_at_time || 0;
         pdf.setFontSize(10);
@@ -114,6 +127,10 @@ export default function OrderManagement() {
         pdf.text(`Quantité: ${quantity} | Prix: ${price} TND`, 25, yPosition + 5);
         yPosition += 12;
       });
+    } else {
+      pdf.setFontSize(10);
+      pdf.text('- Aucun article enregistre', 25, yPosition);
+      yPosition += 12;
     }
     
     pdf.setFontSize(12);
@@ -347,22 +364,37 @@ export default function OrderManagement() {
               <div className="space-y-4">
                 <h4 className="font-bold text-slate-900 border-b pb-2">Articles</h4>
                 <div className="space-y-4">
-                   {selectedOrder.order_items?.map((item: any) => (
-                     <div key={item.id} className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100">
-                       <div className="flex items-center gap-4">
-                         <div className="w-12 h-12 bg-white rounded-lg border flex items-center justify-center overflow-hidden">
-                           <img src={item.product?.image_url} alt="" className="w-full h-full object-cover" />
+                   {selectedOrder.order_items && selectedOrder.order_items.length > 0 ? (
+                     selectedOrder.order_items.map((item) => {
+                       const productName = getOrderItemName(item);
+                       const imageUrl = getOrderItemImage(item);
+
+                       return (
+                         <div key={item.id} className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100">
+                           <div className="flex items-center gap-4">
+                             <div className="w-12 h-12 bg-white rounded-lg border flex items-center justify-center overflow-hidden">
+                               {imageUrl ? (
+                                 <img src={getProductImageUrl(imageUrl)} alt={productName} className="w-full h-full object-cover" onError={handleProductImageError} />
+                               ) : (
+                                 <ShoppingCart className="w-5 h-5 text-slate-300" />
+                               )}
+                             </div>
+                             <div>
+                               <p className="font-bold text-slate-900 text-sm">{productName}</p>
+                               <p className="text-xs text-slate-500">{Number(item.price_at_time).toLocaleString()} TND x {item.quantity}</p>
+                             </div>
+                           </div>
+                           <div className="font-bold text-slate-900">
+                             {Number(item.price_at_time * item.quantity).toLocaleString()} TND
+                           </div>
                          </div>
-                         <div>
-                           <p className="font-bold text-slate-900 text-sm">{item.product?.name}</p>
-                           <p className="text-xs text-slate-500">{item.price_at_time} TND x {item.quantity}</p>
-                         </div>
-                       </div>
-                       <div className="font-bold text-slate-900">
-                         {(item.price_at_time * item.quantity).toLocaleString()} TND
-                       </div>
+                       );
+                     })
+                   ) : (
+                     <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500">
+                       Aucun article enregistré pour cette commande.
                      </div>
-                   ))}
+                   )}
                 </div>
               </div>
             </div>
