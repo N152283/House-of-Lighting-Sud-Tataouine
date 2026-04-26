@@ -1,0 +1,137 @@
+@startuml House of Lighting - Class Diagram
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam classBackgroundColor #F0F0FF
+skinparam classBorderColor #333333
+skinparam arrowColor #333333
+
+abstract class User {
+    - id: UUID
+    - email: string
+    - created_at: DateTime
+}
+
+class AdminUser {
+    - id: UUID
+    - email: string
+    - password_hash: string
+    - role: string
+    + signIn(): void
+    + signOut(): void
+    + resetPassword(): void
+}
+
+class Customer {
+    - id: UUID
+    - email: string
+    - phone: string
+    - address: string
+    + browseProducts(): void
+    + addToCart(): void
+    + checkout(): void
+    + trackOrder(): void
+}
+
+class Product {
+    - id: UUID
+    - name: string
+    - description: string
+    - price: number
+    - image_url: string
+    - stock_quantity: integer
+    - is_featured: boolean
+    - category_id: UUID
+    - created_at: DateTime
+    + getDetails(): ProductDetails
+    + updateStock(quantity): void
+    + getReviews(): Review[]
+}
+
+class Category {
+    - id: UUID
+    - name: string
+    - created_at: DateTime
+    + getProducts(): Product[]
+    + addProduct(product): void
+}
+
+class Cart {
+    - cartItems: CartItem[]
+    - totalPrice: number
+    - totalItems: integer
+    + addItem(product, quantity): void
+    + removeItem(productId): void
+    + updateQuantity(productId, quantity): void
+    + calculateTotal(): number
+    + clear(): void
+}
+
+class CartItem {
+    - product: Product
+    - quantity: integer
+    + getSubtotal(): number
+    + updateQuantity(quantity): void
+}
+
+class Order {
+    - id: UUID
+    - customer_name: string
+    - email: string
+    - phone: string
+    - address: string
+    - total_price: number
+    - status: OrderStatus
+    - created_at: DateTime
+    + updateStatus(status): void
+    + calculateDiscount(): number
+    + applyLoyaltyDiscount(): void
+}
+
+class OrderItem {
+    - id: UUID
+    - order_id: UUID
+    - product_id: UUID
+    - quantity: integer
+    - price_at_time: number
+    + getTotal(): number
+}
+
+class Payment {
+    - id: UUID
+    - order_id: UUID
+    - amount: number
+    - method: string
+    - status: string
+    - created_at: DateTime
+    + processPayment(): boolean
+    + refund(): boolean
+}
+
+class Message {
+    - id: UUID
+    - name: string
+    - email: string
+    - subject: string
+    - message: string
+    - created_at: DateTime
+    + sendNotification(): void
+    + markAsRead(): void
+}
+
+' Inheritance
+User <|-- AdminUser
+User <|-- Customer
+
+' Relationships
+Customer "1" --> "*" Order : places
+Customer "1" --> "1" Cart : maintains
+Cart "1" --> "*" CartItem : contains
+CartItem "*" --> "1" Product : references
+Order "1" --> "*" OrderItem : contains
+OrderItem "*" --> "1" Product : references
+Product "*" --> "1" Category : belongs_to
+Order "1" --> "1" Payment : has
+Customer "*" --> "*" Message : sends
+AdminUser "*" --> "*" Message : receives
+
+@enduml

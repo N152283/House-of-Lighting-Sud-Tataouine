@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, Search, ShoppingCart } from 'lucide-react';
+import { Menu, Search, ShoppingCart, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useCart } from '@/src/contexts/CartContext';
@@ -67,6 +67,15 @@ export default function Navbar() {
             <Button
               variant="ghost"
               size="icon"
+              className="text-slate-600 hover:text-amber-600"
+              onClick={() => navigate('/admin')}
+              title="Espace Admin"
+            >
+              <User className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               className="relative text-slate-600 hover:text-amber-600"
               onClick={() => navigate('/checkout')}
             >
@@ -119,6 +128,14 @@ export default function Navbar() {
                   </Link>
                 ))}
                 <div className="pt-8 border-t border-slate-100 flex flex-col gap-3">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => navigate('/admin')}
+                  >
+                    <User className="w-4 h-4 mr-2" />
+                    Espace Admin
+                  </Button>
                   <Button
                     className="bg-amber-500 hover:bg-amber-600 text-white w-full"
                     onClick={() => navigate('/checkout')}

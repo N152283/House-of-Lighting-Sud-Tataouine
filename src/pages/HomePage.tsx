@@ -259,7 +259,7 @@ export default function HomePage() {
                   </div>
                   <div>
                     <h4 className="font-bold text-white text-lg">Appelez-nous</h4>
-                    <p className="text-slate-400">+216 54 999 872</p>
+                    <p className="text-slate-400">+216 28 571 422</p>
                   </div>
                 </div>
               </div>
@@ -308,7 +308,7 @@ export default function HomePage() {
               <h4 className="font-bold mb-8 text-lg">Horaires Showroom</h4>
               <ul className="space-y-4 text-slate-400">
                 <li className="flex justify-between border-b border-white/5 pb-2"><span>Lun - Vend:</span> <span className="text-white font-medium">07:30 - 18:00</span></li>
-                <li className="flex justify-between border-b border-white/5 pb-2"><span>Samedi:</span> <span className="text-white font-medium">07:30 - 14:00</span></li>
+                <li className="flex justify-between border-b border-white/5 pb-2"><span>Samedi:</span> <span className="text-white font-medium">08:00 - 18:00</span></li>
                 <li className="flex justify-between text-amber-500/70"><span>Dimanche:</span> <span className="font-bold">Fermé</span></li>
               </ul>
             </div>

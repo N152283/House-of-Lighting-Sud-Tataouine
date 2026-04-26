@@ -1,0 +1,104 @@
+@startuml House of Lighting - Use Case Diagram
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam actorBackgroundColor #F0F0FF
+skinparam usecaseBackgroundColor #F0F0FF
+skinparam arrowColor #333333
+
+left to right direction
+
+actor Customer
+actor Admin
+actor System
+
+' Customer Use Cases
+usecase "Browse Products" as UC1
+usecase "Search by Category" as UC2
+usecase "View Product Details" as UC3
+usecase "Add to Cart" as UC4
+usecase "Update Cart Quantity" as UC5
+usecase "Remove from Cart" as UC6
+usecase "View Cart" as UC7
+usecase "Checkout" as UC8
+usecase "Enter Delivery Info" as UC9
+usecase "Receive Loyalty\nDiscount" as UC10
+usecase "Process Payment" as UC11
+usecase "Place Order" as UC12
+usecase "Track Order Status" as UC13
+usecase "Send Message" as UC14
+usecase "Receive Order\nConfirmation" as UC15
+
+' Admin Use Cases
+usecase "Admin Login" as UC20
+usecase "Admin Logout" as UC21
+usecase "View Dashboard" as UC22
+usecase "Manage Products" as UC23
+usecase "Add Product" as UC24
+usecase "Edit Product" as UC25
+usecase "Delete Product" as UC26
+usecase "Manage Inventory" as UC27
+usecase "View All Orders" as UC28
+usecase "Update Order Status" as UC29
+usecase "View Delivery Info" as UC30
+usecase "Manage Categories" as UC31
+usecase "View Messages" as UC32
+usecase "Respond to Customer" as UC33
+usecase "Generate Reports" as UC34
+
+' Customer relationships
+Customer --> UC1
+Customer --> UC2
+Customer --> UC3
+Customer --> UC4
+Customer --> UC5
+Customer --> UC6
+Customer --> UC7
+Customer --> UC8
+Customer --> UC9
+Customer --> UC10
+Customer --> UC11
+Customer --> UC12
+Customer --> UC13
+Customer --> UC14
+Customer --> UC15
+
+' Admin relationships
+Admin --> UC20
+Admin --> UC21
+Admin --> UC22
+Admin --> UC23
+Admin --> UC24
+Admin --> UC25
+Admin --> UC26
+Admin --> UC27
+Admin --> UC28
+Admin --> UC29
+Admin --> UC30
+Admin --> UC31
+Admin --> UC32
+Admin --> UC33
+Admin --> UC34
+
+' System relationships
+System --> UC10
+System --> UC11
+System --> UC12
+System --> UC15
+System --> UC29
+
+' Include relationships (mandatory steps)
+UC8 ..|> UC9 : <<include>>
+UC8 ..|> UC11 : <<include>>
+UC8 ..|> UC12 : <<include>>
+UC11 ..|> UC15 : <<include>>
+UC12 ..|> UC15 : <<include>>
+UC23 ..|> UC24 : <<include>>
+UC23 ..|> UC25 : <<include>>
+UC23 ..|> UC26 : <<include>>
+UC23 ..|> UC27 : <<include>>
+
+' Extend relationships (conditional/optional)
+UC12 --|> UC10 : <<extend>>
+UC9 --|> UC10 : <<extend>>
+
+@enduml

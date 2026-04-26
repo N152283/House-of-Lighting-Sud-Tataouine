@@ -1,0 +1,63 @@
+@startuml House of Lighting - Sequence: Customer Purchase Flow
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam sequenceActorBackgroundColor #F0F0FF
+skinparam sequenceParticipantBackgroundColor #F0F0FF
+skinparam sequenceLifeLineBorderColor #333333
+skinparam arrowColor #333333
+
+actor Customer
+participant Website
+participant "Shopping Cart" as Cart
+participant "Supabase DB" as Database
+participant "Payment Service" as PaymentGateway
+
+Customer -> Website: Browse Products
+Website -> Database: Fetch Categories & Products
+Database --> Website: Return Product List
+Website --> Customer: Display Products
+
+Customer -> Website: Click "Add to Cart"
+Website -> Cart: addToCart(product, quantity)
+Cart -> Cart: Check if product exists
+alt Product already in cart
+    Cart -> Cart: Update quantity
+else New product
+    Cart -> Cart: Add new item
+end
+Cart --> Website: Cart updated
+Website --> Customer: Show toast notification
+
+Customer -> Website: Proceed to Checkout
+Website -> Database: Fetch cart items
+Database --> Website: Return cart details
+Website --> Customer: Display checkout form
+
+Customer -> Website: Enter delivery details\n(name, email, phone, address)
+Website -> Database: Check for previous orders\n(loyalty check)
+Database --> Website: Return order count
+
+Website -> Website: Calculate discount\n(if eligible)
+Website --> Customer: Display final price\nwith discount
+
+Customer -> Website: Confirm Order
+Website -> Database: Create Order record
+Database --> Website: Return Order ID
+
+Website -> Database: Create OrderItems\n(from cart)
+Database --> Website: OrderItems created
+
+Website -> PaymentGateway: Process payment
+PaymentGateway --> Website: Payment confirmed/failed
+
+alt Payment successful
+    Website -> Database: Update order status\nto "confirmed"
+    Website -> Cart: Clear cart
+    Cart -> Cart: Delete cart from localStorage
+    Website --> Customer: Show confirmation page
+    Website -> Website: Send confirmation email
+else Payment failed
+    Website --> Customer: Show error message
+end
+
+@enduml

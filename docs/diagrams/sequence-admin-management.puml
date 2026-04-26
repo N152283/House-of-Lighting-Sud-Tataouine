@@ -1,0 +1,67 @@
+@startuml House of Lighting - Sequence: Admin Login & Product Management
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam sequenceActorBackgroundColor #F0F0FF
+skinparam sequenceParticipantBackgroundColor #F0F0FF
+skinparam sequenceLifeLineBorderColor #333333
+skinparam arrowColor #333333
+
+actor Admin
+participant LoginPage
+participant "Supabase DB" as Database
+participant AdminDashboard
+participant "AuthContext" as Auth
+
+Admin -> LoginPage: Navigate to admin login
+LoginPage --> Admin: Display login form
+
+Admin -> LoginPage: Enter email & password
+LoginPage -> Database: Query users table (email)
+Database --> LoginPage: Return user data
+
+alt User found
+    LoginPage -> LoginPage: Verify password
+    alt Password correct
+        LoginPage -> Auth: setUser(adminUser)
+        Auth -> Auth: Save to localStorage
+        Auth --> LoginPage: Auth state updated
+        LoginPage -> AdminDashboard: Navigate to dashboard
+        AdminDashboard --> Admin: Show dashboard
+    else Password incorrect
+        LoginPage --> Admin: Show "Invalid password" error
+    end
+else User not found
+    LoginPage --> Admin: Show "Email not found" error
+end
+
+Admin -> AdminDashboard: Click "Manage Products"
+AdminDashboard -> Database: Fetch all products
+Database --> AdminDashboard: Return product list
+AdminDashboard --> Admin: Display products table
+
+Admin -> AdminDashboard: Click "Add Product" button
+AdminDashboard --> Admin: Open add product form
+
+Admin -> AdminDashboard: Fill form (name, price,\ncategory, image, stock)
+Admin -> AdminDashboard: Click "Save"
+
+AdminDashboard -> Database: INSERT into products table
+Database --> AdminDashboard: Product created
+AdminDashboard --> Admin: Show success toast
+
+Admin -> AdminDashboard: Click edit on product
+AdminDashboard --> Admin: Show edit form\nwith current data
+
+Admin -> AdminDashboard: Update fields & save
+AdminDashboard -> Database: UPDATE products table
+Database --> AdminDashboard: Product updated
+AdminDashboard --> Admin: Show success message
+
+Admin -> AdminDashboard: Click delete product
+AdminDashboard --> Admin: Show confirmation dialog
+Admin -> AdminDashboard: Confirm delete
+AdminDashboard -> Database: DELETE from products table
+Database --> AdminDashboard: Product deleted
+AdminDashboard --> Admin: Refresh product list
+
+@enduml
